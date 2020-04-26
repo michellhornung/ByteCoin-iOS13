@@ -8,10 +8,10 @@
 
 import Foundation
 
-//protocol CoindManagerDelegate {
-//    func didUpdateCoing()
-//    func didFailWithError(error: Error)
-//}
+protocol CoinManagerDelegate {
+    func didUpdateCoinPrice(price: String, currency: String)
+    func didFailWithError(error: Error)
+}
 
 struct CoinManager {
     
@@ -19,46 +19,49 @@ struct CoinManager {
     let apiKey = "53C1F67B-0E7A-4D3F-9C48-D838972E40F6"
     let currencyArray = ["AUD", "BRL","CAD","CNY","EUR","GBP","HKD","IDR","ILS","INR","JPY","MXN","NOK","NZD","PLN","RON","RUB","SEK","SGD","USD","ZAR"]
     
-    //var delegate: CoindManagerDelegate?
+    var delegate: CoinManagerDelegate?
+    
+    //    func fetchCoin(currency: String) {
+    //        let urlString = "\(baseURL)/\(currency)?apikey=\(apiKey)"
+    //        performRequest(with: urlString)
+    //    }
     
     func getCoinPrice(for currency: String) {
         
-        //Use String concatenation to add the selected currency at the end of the baseURL along with the API key.
         let urlString = "\(baseURL)/\(currency)?apikey=\(apiKey)"
         
-        //Use optional binding to unwrap the URL that's created from the urlString
         if let url = URL(string: urlString) {
             
-            //Create a new URLSession object with default configuration.
             let session = URLSession(configuration: .default)
-            
-            //Create a new data task for the URLSession
             let task = session.dataTask(with: url) { (data, response, error) in
                 if error != nil {
-                    print(error!)
+                    self.delegate?.didFailWithError(error: error!)
                     return
                 }
                 
                 if let safeData = data {
-                    let coinPrice = self.parseJSON(safeData)
+                    if let bitcoinPrice = self.parseJSON(safeData) {
+                        let priceString = String(format: "%.2f", bitcoinPrice)
+                        self.delegate?.didUpdateCoinPrice(price: priceString, currency: currency)
+                    }
                 }
             }
-            //Start task to fetch data from bitcoin average's servers.
             task.resume()
         }
     }
     
-    func parseJSON(_ data: Data) -> Double? {
+    func parseJSON(_ coinData: Data) -> Double? {
+        
         let decoder = JSONDecoder()
+        
         do {
-            let decodedData = try decoder.decode(CoinData.self, from: data)
+            let decodedData = try decoder.decode(CoinData.self, from: coinData)
             let lastPrice = decodedData.rate
             print("LAST PRICE", lastPrice)
             return lastPrice
             
         } catch {
-            //delegate?.didFailWithError(error: Error)
-            print(error)
+            delegate?.didFailWithError(error: error)
             return nil
         }
     }
